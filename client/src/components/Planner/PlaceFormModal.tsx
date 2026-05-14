@@ -219,7 +219,7 @@ export default function PlaceFormModal({
       isOpen={isOpen}
       onClose={onClose}
       title={place ? t('places.editPlace') : t('places.addPlace')}
-      size="lg"
+      size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4" onPaste={handlePaste}>
         {/* Place Search */}
@@ -283,9 +283,9 @@ export default function PlaceFormModal({
           <textarea
             value={form.description}
             onChange={e => handleChange('description', e.target.value)}
-            rows={2}
+            rows={5}
             placeholder={t('places.formDescriptionPlaceholder')}
-            className="form-input" style={{ resize: 'none' }}
+            className="form-input" style={{ resize: 'vertical' }}
           />
         </div>
 

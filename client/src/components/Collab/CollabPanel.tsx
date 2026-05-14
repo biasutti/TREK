@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useTranslation } from '../../i18n'
-import { MessageCircle, StickyNote, BarChart3, Sparkles } from 'lucide-react'
-import CollabChat from './CollabChat'
+import { StickyNote, BarChart3, Sparkles } from 'lucide-react'
 import CollabNotes from './CollabNotes'
 import CollabPolls from './CollabPolls'
 import WhatsNextWidget from './WhatsNextWidget'
@@ -37,11 +36,10 @@ interface CollabPanelProps {
 export default function CollabPanel({ tripId, tripMembers = [] }: CollabPanelProps) {
   const { user } = useAuthStore()
   const { t } = useTranslation()
-  const [mobileTab, setMobileTab] = useState('chat')
+  const [mobileTab, setMobileTab] = useState('notes')
   const isDesktop = useIsDesktop()
 
   const tabs = [
-    { id: 'chat', label: t('collab.tabs.chat') || 'Chat', icon: MessageCircle },
     { id: 'notes', label: t('collab.tabs.notes') || 'Notes', icon: StickyNote },
     { id: 'polls', label: t('collab.tabs.polls') || 'Polls', icon: BarChart3 },
     { id: 'next', label: t('collab.whatsNext.title') || "What's Next", icon: Sparkles },
@@ -50,26 +48,16 @@ export default function CollabPanel({ tripId, tripMembers = [] }: CollabPanelPro
   if (isDesktop) {
     return (
       <div style={{ height: '100%', display: 'flex', gap: 12, padding: 12, overflow: 'hidden', minHeight: 0 }}>
-        {/* Chat — left, fixed width */}
-        <div style={{ ...card, flex: '0 0 380px' }}>
-          <CollabChat tripId={tripId} currentUser={user} />
+        <div style={{ ...card, flex: '1 1 55%' }}>
+          <CollabNotes tripId={tripId} currentUser={user} />
         </div>
 
-        {/* Right column: Notes top, Polls + What's Next bottom */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', minHeight: 0 }}>
-          {/* Notes — top */}
+        <div style={{ flex: '1 1 45%', display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', minHeight: 0 }}>
           <div style={{ ...card, flex: 1 }}>
-            <CollabNotes tripId={tripId} currentUser={user} />
+            <CollabPolls tripId={tripId} currentUser={user} />
           </div>
-
-          {/* Polls + What's Next — bottom row */}
-          <div style={{ flex: 1, display: 'flex', gap: 12, overflow: 'hidden', minHeight: 0 }}>
-            <div style={{ ...card, flex: 1 }}>
-              <CollabPolls tripId={tripId} currentUser={user} />
-            </div>
-            <div style={{ ...card, flex: 1 }}>
-              <WhatsNextWidget tripMembers={tripMembers} />
-            </div>
+          <div style={{ ...card, flex: 1 }}>
+            <WhatsNextWidget tripMembers={tripMembers} />
           </div>
         </div>
       </div>
@@ -102,7 +90,6 @@ export default function CollabPanel({ tripId, tripMembers = [] }: CollabPanelPro
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-        {mobileTab === 'chat' && <CollabChat tripId={tripId} currentUser={user} />}
         {mobileTab === 'notes' && <CollabNotes tripId={tripId} currentUser={user} />}
         {mobileTab === 'polls' && <CollabPolls tripId={tripId} currentUser={user} />}
         {mobileTab === 'next' && <WhatsNextWidget tripMembers={tripMembers} />}

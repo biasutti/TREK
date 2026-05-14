@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTripStore } from '../store/tripStore'
+import { useAuthStore } from '../store/authStore'
 import { useCanDo } from '../store/permissionsStore'
 import { useSettingsStore } from '../store/settingsStore'
 import { MapView } from '../components/Map/MapView'
@@ -20,9 +21,10 @@ import PackingListPanel from '../components/Packing/PackingListPanel'
 import FileManager from '../components/Files/FileManager'
 import BudgetPanel from '../components/Budget/BudgetPanel'
 import CollabPanel from '../components/Collab/CollabPanel'
+import CollabChat from '../components/Collab/CollabChat'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
-import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users } from 'lucide-react'
+import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Camera, Users, MessageCircle } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
@@ -38,6 +40,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const navigate = useNavigate()
   const toast = useToast()
   const { t, language } = useTranslation()
+  const { user } = useAuthStore()
   const { settings } = useSettingsStore()
   const trip = useTripStore(s => s.trip)
   const days = useTripStore(s => s.days)
@@ -92,6 +95,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     ...(enabledAddons.budget ? [{ id: 'finanzplan', label: t('trip.tabs.budget'), icon: Wallet }] : []),
     ...(enabledAddons.documents ? [{ id: 'dateien', label: t('trip.tabs.files'), icon: FolderOpen }] : []),
     ...(enabledAddons.memories ? [{ id: 'memories', label: t('memories.title'), icon: Camera }] : []),
+    ...(enabledAddons.collab ? [{ id: 'chat', label: t('collab.tabs.chat') || 'Chat', icon: MessageCircle }] : []),
     ...(enabledAddons.collab ? [{ id: 'collab', label: t('admin.addons.catalog.collab.name'), icon: Users }] : []),
   ]
 
@@ -893,6 +897,14 @@ export default function TripPlannerPage(): React.ReactElement | null {
         {activeTab === 'memories' && (
           <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
             <MemoriesPanel tripId={Number(tripId)} startDate={trip?.start_date || null} endDate={trip?.end_date || null} />
+          </div>
+        )}
+
+        {activeTab === 'chat' && user && (
+          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', padding: 12 }}>
+            <div style={{ height: '100%', maxWidth: 960, margin: '0 auto', background: 'var(--bg-card)', border: '1px solid var(--border-faint)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <CollabChat tripId={tripId} currentUser={user} />
+            </div>
           </div>
         )}
 
