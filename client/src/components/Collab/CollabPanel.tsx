@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useTranslation } from '../../i18n'
 import { StickyNote, BarChart3, Sparkles } from 'lucide-react'
@@ -28,43 +28,92 @@ interface TripMember {
   avatar_url?: string | null
 }
 
+interface CollabFeatures {
+  chat: boolean
+  notes: boolean
+  polls: boolean
+  whatsnext: boolean
+}
+
 interface CollabPanelProps {
   tripId: number
   tripMembers?: TripMember[]
+  collabFeatures?: CollabFeatures
 }
 
-export default function CollabPanel({ tripId, tripMembers = [] }: CollabPanelProps) {
+const ALL_TABS = [
+  { id: 'notes', featureKey: 'notes' as const, labelKey: 'collab.tabs.notes', fallback: 'Notes', icon: StickyNote },
+  { id: 'polls', featureKey: 'polls' as const, labelKey: 'collab.tabs.polls', fallback: 'Polls', icon: BarChart3 },
+  { id: 'next', featureKey: 'whatsnext' as const, labelKey: 'collab.whatsNext.title', fallback: "What's Next", icon: Sparkles },
+]
+
+type CollabPanelTabId = typeof ALL_TABS[number]['id']
+
+export default function CollabPanel({ tripId, tripMembers = [], collabFeatures }: CollabPanelProps) {
   const { user } = useAuthStore()
   const { t } = useTranslation()
-  const [mobileTab, setMobileTab] = useState('notes')
   const isDesktop = useIsDesktop()
 
-  const tabs = [
-    { id: 'notes', label: t('collab.tabs.notes') || 'Notes', icon: StickyNote },
-    { id: 'polls', label: t('collab.tabs.polls') || 'Polls', icon: BarChart3 },
-    { id: 'next', label: t('collab.whatsNext.title') || "What's Next", icon: Sparkles },
-  ]
+  const features = collabFeatures || { chat: true, notes: true, polls: true, whatsnext: true }
+
+  const tabs = useMemo(() =>
+    ALL_TABS.filter(tab => features[tab.featureKey]).map(tab => ({
+      ...tab,
+      label: t(tab.labelKey) || tab.fallback,
+    })),
+  [features, t])
+
+  const [mobileTab, setMobileTab] = useState<CollabPanelTabId>(() => tabs[0]?.id || 'notes')
+
+  // If active tab gets disabled, switch to first available
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.some(t => t.id === mobileTab)) {
+      setMobileTab(tabs[0].id)
+    }
+  }, [tabs, mobileTab])
+
+  const panels = tabs.map(tab => tab.id)
+
+  if (tabs.length === 0) return null
+
+  const renderPanel = (panel: CollabPanelTabId) => {
+    if (panel === 'notes') return <CollabNotes tripId={tripId} currentUser={user} />
+    if (panel === 'polls') return <CollabPolls tripId={tripId} currentUser={user} />
+    return <WhatsNextWidget tripMembers={tripMembers} />
+  }
 
   if (isDesktop) {
+    if (panels.length === 3) {
+      return (
+        <div style={{ height: '100%', display: 'flex', gap: 12, padding: 12, overflow: 'hidden', minHeight: 0 }}>
+          <div style={{ ...card, flex: '1 1 55%' }}>
+            <CollabNotes tripId={tripId} currentUser={user} />
+          </div>
+
+          <div style={{ flex: '1 1 45%', display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', minHeight: 0 }}>
+            <div style={{ ...card, flex: 1 }}>
+              <CollabPolls tripId={tripId} currentUser={user} />
+            </div>
+            <div style={{ ...card, flex: 1 }}>
+              <WhatsNextWidget tripMembers={tripMembers} />
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div style={{ height: '100%', display: 'flex', gap: 12, padding: 12, overflow: 'hidden', minHeight: 0 }}>
-        <div style={{ ...card, flex: '1 1 55%' }}>
-          <CollabNotes tripId={tripId} currentUser={user} />
-        </div>
-
-        <div style={{ flex: '1 1 45%', display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', minHeight: 0 }}>
-          <div style={{ ...card, flex: 1 }}>
-            <CollabPolls tripId={tripId} currentUser={user} />
+        {panels.map(panel => (
+          <div key={panel} style={{ ...card, flex: 1 }}>
+            {renderPanel(panel)}
           </div>
-          <div style={{ ...card, flex: 1 }}>
-            <WhatsNextWidget tripMembers={tripMembers} />
-          </div>
-        </div>
+        ))}
       </div>
     )
   }
 
-  // Mobile: tab bar + single panel
+  // Mobile: tab bar + single panel (only enabled tabs)
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'absolute', inset: 0 }}>
       <div style={{
@@ -72,7 +121,6 @@ export default function CollabPanel({ tripId, tripMembers = [] }: CollabPanelPro
         background: 'var(--bg-card)', flexShrink: 0,
       }}>
         {tabs.map(tab => {
-          const Icon = tab.icon
           const active = mobileTab === tab.id
           return (
             <button key={tab.id} onClick={() => setMobileTab(tab.id)} style={{
@@ -90,9 +138,9 @@ export default function CollabPanel({ tripId, tripMembers = [] }: CollabPanelPro
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-        {mobileTab === 'notes' && <CollabNotes tripId={tripId} currentUser={user} />}
-        {mobileTab === 'polls' && <CollabPolls tripId={tripId} currentUser={user} />}
-        {mobileTab === 'next' && <WhatsNextWidget tripMembers={tripMembers} />}
+        {mobileTab === 'notes' && features.notes && <CollabNotes tripId={tripId} currentUser={user} />}
+        {mobileTab === 'polls' && features.polls && <CollabPolls tripId={tripId} currentUser={user} />}
+        {mobileTab === 'next' && features.whatsnext && <WhatsNextWidget tripMembers={tripMembers} />}
       </div>
     </div>
   )

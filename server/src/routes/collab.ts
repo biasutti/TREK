@@ -9,6 +9,7 @@ import { validateStringLengths } from '../middleware/validate';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
 import { db } from '../db/database';
+import { BLOCKED_EXTENSIONS } from '../services/fileService';
 import {
   verifyTripAccess,
   listNotes,
@@ -41,8 +42,10 @@ const noteUpload = multer({
   defParamCharset: 'utf8',
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const BLOCKED = ['.svg', '.html', '.htm', '.xml', '.xhtml', '.js', '.jsx', '.ts', '.exe', '.bat', '.sh', '.cmd', '.msi', '.dll', '.com', '.vbs', '.ps1', '.php'];
-    if (BLOCKED.includes(ext) || file.mimetype.includes('svg') || file.mimetype.includes('html') || file.mimetype.includes('javascript')) {
+    // Share the single BLOCKED_EXTENSIONS list from fileService so
+    // executable/script attachments can't sneak in via collab when the
+    // main uploader already rejects them.
+    if (BLOCKED_EXTENSIONS.includes(ext) || file.mimetype.includes('svg') || file.mimetype.includes('html') || file.mimetype.includes('javascript')) {
       const err: Error & { statusCode?: number } = new Error('File type not allowed');
       err.statusCode = 400;
       return cb(err);
@@ -79,9 +82,9 @@ router.post('/notes', authenticate, (req: Request, res: Response) => {
   res.status(201).json({ note: formatted });
   broadcast(tripId, 'collab:note:created', { note: formatted }, req.headers['x-socket-id'] as string);
 
-  import('../services/notifications').then(({ notifyTripMembers }) => {
+  import('../services/notificationService').then(({ send }) => {
     const tripInfo = db.prepare('SELECT title FROM trips WHERE id = ?').get(tripId) as { title: string } | undefined;
-    notifyTripMembers(Number(tripId), authReq.user.id, 'collab_message', { trip: tripInfo?.title || 'Untitled', actor: authReq.user.email }).catch(() => {});
+    send({ event: 'collab_message', actorId: authReq.user.id, scope: 'trip', targetId: Number(tripId), params: { trip: tripInfo?.title || 'Untitled', actor: authReq.user.email, tripId: String(tripId) } }).catch(() => {});
   });
 });
 
@@ -256,10 +259,10 @@ router.post('/messages', authenticate, validateStringLengths({ text: 5000 }), (r
   broadcast(tripId, 'collab:message:created', { message: result.message }, req.headers['x-socket-id'] as string);
 
   // Notify trip members about new chat message
-  import('../services/notifications').then(({ notifyTripMembers }) => {
+  import('../services/notificationService').then(({ send }) => {
     const tripInfo = db.prepare('SELECT title FROM trips WHERE id = ?').get(tripId) as { title: string } | undefined;
     const preview = text.trim().length > 80 ? text.trim().substring(0, 80) + '...' : text.trim();
-    notifyTripMembers(Number(tripId), authReq.user.id, 'collab_message', { trip: tripInfo?.title || 'Untitled', actor: authReq.user.email, preview }).catch(() => {});
+    send({ event: 'collab_message', actorId: authReq.user.id, scope: 'trip', targetId: Number(tripId), params: { trip: tripInfo?.title || 'Untitled', actor: authReq.user.email, preview, tripId: String(tripId) } }).catch(() => {});
   });
 });
 

@@ -1,8 +1,7 @@
 import dns from 'node:dns/promises';
-import http from 'node:http';
-import https from 'node:https';
+import { Agent } from 'undici';
 
-const ALLOW_INTERNAL_NETWORK = process.env.ALLOW_INTERNAL_NETWORK === 'true';
+const ALLOW_INTERNAL_NETWORK = process.env.ALLOW_INTERNAL_NETWORK?.toLowerCase() === 'true';
 
 export interface SsrfResult {
   allowed: boolean;
@@ -67,11 +66,6 @@ export async function checkSsrf(rawUrl: string, bypassInternalIpAllowed: boolean
 
   const hostname = url.hostname.toLowerCase();
 
-  // Block internal hostname suffixes (no override — these are too easy to abuse)
-  if (isInternalHostname(hostname) && hostname !== 'localhost') {
-    return { allowed: false, isPrivate: false, error: 'Requests to .local/.internal domains are not allowed' };
-  }
-
   // Resolve hostname to IP
   let resolvedIp: string;
   try {
@@ -106,17 +100,55 @@ export async function checkSsrf(rawUrl: string, bypassInternalIpAllowed: boolean
 }
 
 /**
- * Returns an http/https Agent whose `lookup` function is pinned to the
- * already-validated IP. This prevents DNS rebinding (TOCTOU) by ensuring
- * the outbound connection goes to the IP we checked, not a re-resolved one.
+ * Thrown by safeFetch() when the URL is blocked by the SSRF guard.
  */
-export function createPinnedAgent(resolvedIp: string, protocol: string): http.Agent | https.Agent {
-  const options = {
-    lookup: (_hostname: string, _opts: unknown, callback: (err: Error | null, addr: string, family: number) => void) => {
-      // Determine address family from IP format
-      const family = resolvedIp.includes(':') ? 6 : 4;
-      callback(null, resolvedIp, family);
+export class SsrfBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SsrfBlockedError';
+  }
+}
+
+export interface SafeFetchOptions {
+  rejectUnauthorized?: boolean;
+}
+
+/**
+ * SSRF-safe fetch wrapper. Validates the URL with checkSsrf(), then makes
+ * the request using a DNS-pinned dispatcher so the resolved IP cannot change
+ * between the check and the actual connection (DNS rebinding prevention).
+ *
+ * Pass `{ rejectUnauthorized: false }` for targets that use self-signed TLS
+ * certificates (e.g. a Synology NAS on a local network). The SSRF guard still
+ * applies — only the TLS certificate check is relaxed.
+ */
+export async function safeFetch(url: string, init?: RequestInit, options?: SafeFetchOptions): Promise<Response> {
+  const ssrf = await checkSsrf(url);
+  if (!ssrf.allowed) {
+    throw new SsrfBlockedError(ssrf.error ?? 'Request blocked by SSRF guard');
+  }
+  const dispatcher = createPinnedDispatcher(ssrf.resolvedIp!, options?.rejectUnauthorized ?? true);
+  return fetch(url, { ...init, dispatcher } as any);
+}
+
+/**
+ * Returns an undici Agent whose connect.lookup is pinned to the already-validated
+ * IP. This prevents DNS rebinding (TOCTOU) by ensuring the outbound connection
+ * goes to the IP we checked, not a re-resolved one.
+ */
+export function createPinnedDispatcher(resolvedIp: string, rejectUnauthorized = true): Agent {
+  return new Agent({
+    connect: {
+      rejectUnauthorized,
+      lookup: (_hostname: string, opts: Record<string, unknown>, callback: Function) => {
+        const family = resolvedIp.includes(':') ? 6 : 4;
+        // Node.js 18+ may call lookup with `all: true`, expecting an array of address objects
+        if (opts?.all) {
+          callback(null, [{ address: resolvedIp, family }]);
+        } else {
+          callback(null, resolvedIp, family);
+        }
+      },
     },
-  };
-  return protocol === 'https:' ? new https.Agent(options) : new http.Agent(options);
+  });
 }

@@ -20,45 +20,82 @@ import Database from 'better-sqlite3';
 import { createTables } from '../../src/db/schema';
 import { runMigrations } from '../../src/db/migrations';
 
-// Tables to clear on reset, ordered to avoid FK violations
+// Tables to clear on reset, child-before-parent to be safe (FK checks are OFF during reset).
+// Keep in sync with schema.ts + migrations.ts. Intentionally excluded: categories, addons,
+// photo_providers, photo_provider_fields, schema_version (seed/config data, not user data).
 const RESET_TABLES = [
+  // Collab
   'file_links',
+  'collab_message_reactions',
   'collab_poll_votes',
   'collab_messages',
-  'collab_poll_options',
   'collab_polls',
   'collab_notes',
+  // Day content
   'day_notes',
+  'todo_category_assignees',
+  'todo_items',
   'assignment_participants',
   'day_assignments',
-  'packing_category_assignees',
-  'packing_bags',
-  'packing_items',
-  'budget_item_members',
-  'budget_items',
-  'trip_files',
-  'share_tokens',
-  'photos',
-  'reservations',
-  'day_accommodations',
+  // Places
+  'place_regions',
   'place_tags',
   'places',
+  // Packing
+  'packing_category_assignees',
+  'packing_bag_members',
+  'packing_bags',
+  'packing_template_items',
+  'packing_template_categories',
+  'packing_templates',
+  'packing_items',
+  // Budget
+  'budget_item_members',
+  'budget_items',
+  // Photos & files
+  'trip_photos',
+  'trip_album_links',
+  'trip_files',
+  'photos',
+  // Reservations
+  'reservation_day_positions',
+  'reservations',
+  // Accommodations & days
+  'day_accommodations',
   'days',
+  // Trip
+  'share_tokens',
   'trip_members',
   'trips',
+  // Journey
+  'journey_share_tokens',
+  'journey_photos',
+  'journey_entries',
+  'journey_contributors',
+  'journey_trips',
+  'journeys',
+  // Vacay
   'vacay_entries',
   'vacay_company_holidays',
   'vacay_holiday_calendars',
   'vacay_plan_members',
+  'vacay_user_colors',
+  'vacay_user_years',
   'vacay_years',
   'vacay_plans',
-  'atlas_visited_countries',
-  'atlas_bucket_list',
+  // Atlas
+  'visited_regions',
+  'visited_countries',
+  'bucket_list',
+  // Notifications & audit
+  'notification_channel_preferences',
   'notifications',
   'audit_log',
-  'user_settings',
+  // System notices
+  'user_notice_dismissals',
+  // User data
+  'settings',
   'mcp_tokens',
-  'mcp_sessions',
   'invite_tokens',
   'tags',
   'app_settings',
@@ -85,7 +122,13 @@ const DEFAULT_ADDONS = [
   { id: 'vacay',     name: 'Vacay',           description: 'Vacation day planner',       type: 'global',      icon: 'CalendarDays',enabled: 1, sort_order: 10 },
   { id: 'atlas',     name: 'Atlas',           description: 'Visited countries map',      type: 'global',      icon: 'Globe',       enabled: 1, sort_order: 11 },
   { id: 'mcp',       name: 'MCP',             description: 'AI assistant integration',   type: 'integration', icon: 'Terminal',    enabled: 0, sort_order: 12 },
+  { id: 'naver_list_import', name: 'Naver List Import', description: 'Import places from shared Naver Maps lists', type: 'trip', icon: 'Link2', enabled: 0, sort_order: 13 },
   { id: 'collab',    name: 'Collab',          description: 'Notes, polls, live chat',    type: 'trip',        icon: 'Users',       enabled: 1, sort_order: 6  },
+];
+
+const DEFAULT_PHOTO_PROVIDERS = [
+  { id: 'immich',         name: 'Immich',          enabled: 1 },
+  { id: 'synologyphotos', name: 'Synology Photos',  enabled: 1 },
 ];
 
 function seedDefaults(db: Database.Database): void {
@@ -94,6 +137,11 @@ function seedDefaults(db: Database.Database): void {
 
   const insertAddon = db.prepare('INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
   for (const a of DEFAULT_ADDONS) insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order);
+
+  try {
+    const insertProvider = db.prepare('INSERT OR IGNORE INTO photo_providers (id, name, description, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+    for (const p of DEFAULT_PHOTO_PROVIDERS) insertProvider.run(p.id, p.name, p.id, 'Image', p.enabled, 0);
+  } catch { /* table may not exist in very old schemas */ }
 }
 
 /**
@@ -117,8 +165,13 @@ export function createTestDb(): Database.Database {
  */
 export function resetTestDb(db: Database.Database): void {
   db.exec('PRAGMA foreign_keys = OFF');
+  const existingTables = new Set(
+    (db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]).map(r => r.name)
+  );
   for (const table of RESET_TABLES) {
-    try { db.exec(`DELETE FROM "${table}"`); } catch { /* table may not exist in older schemas */ }
+    if (existingTables.has(table)) {
+      db.exec(`DELETE FROM "${table}"`);
+    }
   }
   db.exec('PRAGMA foreign_keys = ON');
   seedDefaults(db);

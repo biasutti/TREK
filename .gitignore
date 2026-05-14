@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 client/dist/
+server/public/*
+!server/public/.gitkeep
 
 # Generated PWA icons (built from SVG via prebuild)
 client/public/icons/*.png
@@ -16,7 +18,7 @@ client/public/icons/*.png
 *.sqlite-wal
 
 # User data
-server/data/
+server/data/*
 server/uploads/
 
 # Environment
@@ -58,3 +60,7 @@ coverage
 *.tgz
 
 .scannerwork
+test-data
+
+.run
+.full-review
