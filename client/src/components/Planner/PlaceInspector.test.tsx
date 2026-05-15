@@ -262,7 +262,7 @@ describe('PlaceInspector', () => {
     // Find the remove button — it has "Remove" text (sm:hidden span)
     const removeBtn = screen.getByText('Remove').closest('button')!;
     await user.click(removeBtn);
-    // Component calls onRemoveAssignment(selectedDayId, assignmentInDay.id)
+    // Component calls onRemoveAssignment(assignment.day_id, assignment.id)
     expect(onRemoveAssignment).toHaveBeenCalledWith(1, 99);
   });
 
@@ -287,6 +287,26 @@ describe('PlaceInspector', () => {
     await user.click(screen.getByText('Remove').closest('button')!);
 
     expect(onRemoveAssignment).toHaveBeenCalledWith(1, 99);
+  });
+
+  it('removes the selected assignment from its actual day', async () => {
+    const user = userEvent.setup();
+    const onRemoveAssignment = vi.fn();
+    const selectedAssignment = { id: 99, place: { id: place.id }, day_id: 2, place_id: place.id, order_index: 0, notes: null };
+
+    render(
+      <PlaceInspector
+        {...defaultProps}
+        selectedDayId={1}
+        selectedAssignmentId={99}
+        assignments={{ '2': [selectedAssignment] }}
+        onRemoveAssignment={onRemoveAssignment}
+      />
+    );
+
+    await user.click(screen.getByText('Remove').closest('button')!);
+
+    expect(onRemoveAssignment).toHaveBeenCalledWith(2, 99);
   });
 
   // ── Inline name editing ────────────────────────────────────────────────────

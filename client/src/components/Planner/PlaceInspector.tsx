@@ -118,7 +118,7 @@ interface PlaceInspectorProps {
   onEdit: () => void
   onDelete: () => void
   onAssignToDay: (placeId: number, dayId: number) => void
-  onRemoveAssignment: (assignmentId: number, dayId: number) => void
+  onRemoveAssignment: (dayId: number, assignmentId: number) => void
   files: TripFile[]
   onFileUpload?: (fd: FormData) => Promise<void>
   tripMembers?: TripMember[]
@@ -612,7 +612,7 @@ export default function PlaceInspector({
         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-faint)', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {selectedDayId && (
             assignmentInDay ? (
-              <ActionButton onClick={() => onRemoveAssignment(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
+              <ActionButton onClick={() => onRemoveAssignment(assignmentInDay.day_id, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
                 label={<><span className="hidden sm:inline">{t('inspector.removeFromDay')}</span><span className="sm:hidden">{t('inspector.remove')}</span></>} />
             ) : (
               <ActionButton onClick={() => onAssignToDay(place.id)} variant="primary" icon={<Plus size={13} />} label={t('inspector.addToDay')} />

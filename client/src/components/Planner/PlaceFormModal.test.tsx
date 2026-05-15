@@ -295,23 +295,22 @@ describe('PlaceFormModal', () => {
     expect(screen.queryByTestId('time-picker')).not.toBeInTheDocument();
   });
 
-  it('time section is shown for assignment edits', () => {
+  it('time section is NOT shown for assignment edits in the place modal', () => {
     const place = buildPlace({ name: 'Test' });
     render(<PlaceFormModal {...defaultProps} place={place} assignmentId={10} />);
-    expect(screen.getAllByTestId('time-picker').length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByTestId('time-picker')).not.toBeInTheDocument();
   });
 
-  it('FE-PLANNER-PLACEFORM-027: end-before-start error disables submit', () => {
+  it('FE-PLANNER-PLACEFORM-027: hidden assignment times do not disable submit', () => {
     // Build a place with end_time before place_time
     const place = buildPlace({ name: 'Test', place_time: '14:00', end_time: '13:00' });
     render(<PlaceFormModal {...defaultProps} place={place} assignmentId={10} />);
 
-    // hasTimeError = true → submit button disabled
     const submitBtn = screen.getByRole('button', { name: /^Update$/i });
-    expect(submitBtn).toBeDisabled();
+    expect(submitBtn).not.toBeDisabled();
   });
 
-  it('FE-PLANNER-PLACEFORM-028: time collision warning appears when assignments overlap', () => {
+  it('FE-PLANNER-PLACEFORM-028: time collision warning is hidden in the place modal', () => {
     // Create an assignment for the "current" place being edited
     const currentPlace = buildPlace({ name: 'My Event', place_time: '12:30', end_time: '13:30' });
     const conflictingPlace = buildPlace({ name: 'Other Event', place_time: '13:00', end_time: '14:00' });
@@ -328,8 +327,7 @@ describe('PlaceFormModal', () => {
       />,
     );
 
-    // English translation: 'places.timeCollision' = 'Time overlap with:'
-    expect(screen.getByText(/Time overlap with:/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Time overlap with:/i)).not.toBeInTheDocument();
   });
 
   // ── File attachments ──────────────────────────────────────────────────────────

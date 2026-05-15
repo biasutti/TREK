@@ -174,7 +174,7 @@ interface DayPlanSidebarProps {
   onUpdateDayTitle: (dayId: number, title: string) => void
   onRouteCalculated: (dayId: number, route: RouteResult | null) => void
   onAssignToDay: (placeId: number, dayId: number) => void
-  onRemoveAssignment: (assignmentId: number, dayId: number) => void
+  onRemoveAssignment: (dayId: number, assignmentId: number) => void
   onEditPlace: (place: Place) => void
   onDeletePlace: (placeId: number) => void
   reservations?: Reservation[]

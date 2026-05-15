@@ -95,7 +95,7 @@ export const createAssignmentsSlice = (set: SetState, get: GetState): Assignment
     set(state => ({
       assignments: {
         ...state.assignments,
-        [String(dayId)]: state.assignments[String(dayId)].filter(a => a.id !== assignmentId),
+        [String(dayId)]: (state.assignments[String(dayId)] || []).filter(a => a.id !== assignmentId),
       }
     }))
 
