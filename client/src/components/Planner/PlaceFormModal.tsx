@@ -578,8 +578,8 @@ export default function PlaceFormModal({
           )}
         </div>
 
-        {/* Time — only shown when editing, not when creating */}
-        {place && (
+        {/* Time is assignment-specific and can only be persisted with an assignment id. */}
+        {place && assignmentId && (
           <TimeSection
             form={form}
             handleChange={handleChange}

@@ -266,6 +266,29 @@ describe('PlaceInspector', () => {
     expect(onRemoveAssignment).toHaveBeenCalledWith(1, 99);
   });
 
+  it('removes the selected duplicate assignment instead of the first place match', async () => {
+    const user = userEvent.setup();
+    const onRemoveAssignment = vi.fn();
+    const duplicates = [
+      { id: 98, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 0, notes: null },
+      { id: 99, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 1, notes: null },
+    ];
+
+    render(
+      <PlaceInspector
+        {...defaultProps}
+        selectedDayId={1}
+        selectedAssignmentId={99}
+        assignments={{ '1': duplicates }}
+        onRemoveAssignment={onRemoveAssignment}
+      />
+    );
+
+    await user.click(screen.getByText('Remove').closest('button')!);
+
+    expect(onRemoveAssignment).toHaveBeenCalledWith(1, 99);
+  });
+
   // ── Inline name editing ────────────────────────────────────────────────────
 
   it('FE-PLANNER-INSPECTOR-019: double-clicking name enters edit mode', async () => {
@@ -436,6 +459,32 @@ describe('PlaceInspector', () => {
     // The participants section renders with a "participants" label
     // It's visible when tripMembers.length > 1 && selectedAssignmentId is set
     expect(screen.getByText(members[0].username)).toBeTruthy();
+  });
+
+  it('participant changes target the selected duplicate assignment', async () => {
+    const user = userEvent.setup();
+    const onSetParticipants = vi.fn();
+    const members = [buildUser({ id: 1, username: 'Alice' }), buildUser({ id: 2, username: 'Bob' })];
+    const duplicates = [
+      { id: 98, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 0, notes: null, participants: [] },
+      { id: 99, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 1, notes: null, participants: [{ user_id: 1 }] },
+    ];
+
+    render(
+      <PlaceInspector
+        {...defaultProps}
+        tripMembers={members}
+        selectedDayId={1}
+        selectedAssignmentId={99}
+        assignments={{ '1': duplicates }}
+        onSetParticipants={onSetParticipants}
+      />
+    );
+
+    await user.click(screen.getByText('+'));
+    await user.click(screen.getByText('Bob'));
+
+    expect(onSetParticipants).toHaveBeenCalledWith(99, 1, []);
   });
 
   // ── Price chip ─────────────────────────────────────────────────────────────
@@ -648,4 +697,3 @@ describe('PlaceInspector', () => {
   });
 
 });
-

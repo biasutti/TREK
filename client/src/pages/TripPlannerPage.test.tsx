@@ -660,7 +660,7 @@ describe('TripPlannerPage', () => {
     it('calls handlePlaceClick through captured DayPlanSidebar props', async () => {
       vi.useFakeTimers();
 
-      const place = buildPlace({ id: 1, trip_id: 42, lat: 48.8566, lng: 2.3522 });
+      const place = buildPlace({ id: 1, trip_id: 42, lat: 48.8566, lng: 2.3522, place_time: '10:00', end_time: '11:00' });
       seedTripStore({ id: 42 });
       seedStore(useTripStore, { places: [place] } as any);
 
@@ -1357,6 +1357,41 @@ describe('TripPlannerPage', () => {
       await act(async () => {
         capturedPlaceInspectorProps.current.onEdit?.();
       });
+
+      expect(capturedPlaceFormModalProps.current.assignmentId).toBe(10);
+      expect(capturedPlaceFormModalProps.current.place.place_time).toBe(assignment.place.place_time);
+    });
+  });
+
+  describe('duplicate assignment selection', () => {
+    it('selects the newly created assignment after assigning a place to a day', async () => {
+      vi.useFakeTimers();
+      const place = buildPlace({ id: 1, trip_id: 42 });
+      const assignment = buildAssignment({ id: 99, day_id: 1, place, order_index: 1 });
+      const assignPlaceToDay = vi.fn().mockResolvedValue(assignment);
+
+      seedTripStore({ id: 42 });
+      seedStore(useTripStore, {
+        places: [place],
+        selectedDayId: 1,
+        assignPlaceToDay,
+        refreshDays: vi.fn().mockResolvedValue(undefined),
+      } as any);
+
+      renderPlannerPage(42);
+      act(() => { vi.runAllTimers(); });
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('day-plan-sidebar')).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        await capturedDayPlanSidebarProps.current.onAssignToDay(place.id, 1);
+      });
+
+      expect(assignPlaceToDay).toHaveBeenCalledWith('42', 1, place.id, undefined);
+      expect(mockSelectAssignment).toHaveBeenCalledWith(99, place.id);
     });
   });
 

@@ -593,6 +593,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
       toast.success(t('trip.toast.assignedToDay'))
       updateRouteForDay(target)
       if (assignment?.id) {
+        selectAssignment(assignment.id, placeId)
         const capturedAssignmentId = assignment.id
         const capturedTarget = target
         pushUndo(t('undo.assignPlace'), async () => {
@@ -600,7 +601,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
         })
       }
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) }
-  }, [selectedDayId, tripId, toast, updateRouteForDay, pushUndo])
+  }, [selectedDayId, tripId, toast, updateRouteForDay, pushUndo, selectAssignment])
 
   const handleRemoveAssignment = useCallback(async (dayId, assignmentId) => {
     const state = useTripStore.getState()

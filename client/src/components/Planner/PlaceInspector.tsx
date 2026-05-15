@@ -169,7 +169,11 @@ export default function PlaceInspector({
 
   const category = categories?.find(c => c.id === place.category_id)
   const dayAssignments = selectedDayId ? (assignments[String(selectedDayId)] || []) : []
-  const assignmentInDay = selectedDayId ? dayAssignments.find(a => a.place?.id === place.id) : null
+  const selectedAssignment = selectedAssignmentId
+    ? Object.values(assignments).flat().find(a => a.id === selectedAssignmentId)
+    : null
+  const assignmentInDay = selectedAssignment
+    ?? (selectedDayId ? dayAssignments.find(a => a.place?.id === place.id) : null)
 
   const openingHours = googleDetails?.opening_hours || null
   const openNow = googleDetails?.open_now ?? null
@@ -285,10 +289,10 @@ export default function PlaceInspector({
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{place.address}</span>
               </div>
             )}
-            {place.place_time && (
+            {(assignmentInDay?.place?.place_time || place.place_time) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
                 <Clock size={10} color="var(--text-faint)" style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatTime(place.place_time, locale, timeFormat)}{place.end_time ? ` – ${formatTime(place.end_time, locale, timeFormat)}` : ''}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatTime(assignmentInDay?.place?.place_time || place.place_time, locale, timeFormat)}{(assignmentInDay?.place?.end_time || place.end_time) ? ` – ${formatTime(assignmentInDay?.place?.end_time || place.end_time, locale, timeFormat)}` : ''}</span>
               </div>
             )}
             {place.lat && place.lng && (
@@ -357,12 +361,12 @@ export default function PlaceInspector({
 
           {/* Reservation + Participants — side by side */}
           {(() => {
-            const res = selectedAssignmentId ? reservations.find(r => r.assignment_id === selectedAssignmentId) : null
-            const assignment = selectedAssignmentId ? (assignments[String(selectedDayId)] || []).find(a => a.id === selectedAssignmentId) : null
+            const assignment = assignmentInDay
+            const res = assignment ? reservations.find(r => r.assignment_id === assignment.id) : null
             const currentParticipants = assignment?.participants || []
             const participantIds = currentParticipants.map(p => p.user_id)
             const allJoined = currentParticipants.length === 0
-            const showParticipants = selectedAssignmentId && tripMembers.length > 1
+            const showParticipants = assignment && tripMembers.length > 1
             if (!res && !showParticipants) return null
             return (
               <div className={`grid ${res && showParticipants ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2`}>
@@ -426,8 +430,8 @@ export default function PlaceInspector({
                     participantIds={participantIds}
                     allJoined={allJoined}
                     onSetParticipants={onSetParticipants}
-                    selectedAssignmentId={selectedAssignmentId}
-                    selectedDayId={selectedDayId}
+                    selectedAssignmentId={assignment.id}
+                    selectedDayId={assignment.day_id}
                     t={t}
                   />
                 )}

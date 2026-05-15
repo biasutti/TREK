@@ -196,17 +196,15 @@ export function handleRemoteEvent(set: SetState, get: GetState, event: WebSocket
         const dayKey = String((payload.assignment as Assignment).day_id)
         const existing = (state.assignments[dayKey] || [])
         const placeId = (payload.assignment as Assignment).place?.id || (payload.assignment as Assignment).place_id
-        if (existing.some(a => a.id === (payload.assignment as Assignment).id || (placeId && a.place?.id === placeId))) {
-          const hasTempVersion = existing.some(a => a.id < 0 && a.place?.id === placeId)
-          if (hasTempVersion) {
-            return {
-              assignments: {
-                ...state.assignments,
-                [dayKey]: existing.map(a => (a.id < 0 && a.place?.id === placeId) ? payload.assignment as Assignment : a),
-              }
+        if (existing.some(a => a.id === (payload.assignment as Assignment).id)) return {}
+        const hasTempVersion = existing.some(a => a.id < 0 && (a.place?.id || a.place_id) === placeId)
+        if (hasTempVersion) {
+          return {
+            assignments: {
+              ...state.assignments,
+              [dayKey]: existing.map(a => (a.id < 0 && (a.place?.id || a.place_id) === placeId) ? payload.assignment as Assignment : a),
             }
           }
-          return {}
         }
         return {
           assignments: {

@@ -289,17 +289,22 @@ describe('PlaceFormModal', () => {
     expect(screen.queryByTestId('time-picker')).not.toBeInTheDocument();
   });
 
-  it('FE-PLANNER-PLACEFORM-026: time section IS shown in edit mode', () => {
+  it('FE-PLANNER-PLACEFORM-026: time section is NOT shown for global place edits', () => {
     const place = buildPlace({ name: 'Test' });
     render(<PlaceFormModal {...defaultProps} place={place} assignmentId={null} />);
-    // Time pickers are rendered when editing
+    expect(screen.queryByTestId('time-picker')).not.toBeInTheDocument();
+  });
+
+  it('time section is shown for assignment edits', () => {
+    const place = buildPlace({ name: 'Test' });
+    render(<PlaceFormModal {...defaultProps} place={place} assignmentId={10} />);
     expect(screen.getAllByTestId('time-picker').length).toBeGreaterThanOrEqual(2);
   });
 
   it('FE-PLANNER-PLACEFORM-027: end-before-start error disables submit', () => {
     // Build a place with end_time before place_time
     const place = buildPlace({ name: 'Test', place_time: '14:00', end_time: '13:00' });
-    render(<PlaceFormModal {...defaultProps} place={place} assignmentId={null} />);
+    render(<PlaceFormModal {...defaultProps} place={place} assignmentId={10} />);
 
     // hasTimeError = true → submit button disabled
     const submitBtn = screen.getByRole('button', { name: /^Update$/i });
